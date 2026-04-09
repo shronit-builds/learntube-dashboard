@@ -40,8 +40,18 @@
       animation: spin 0.8s linear infinite;
     }
 
-    /* Selection */
     ::selection { background: rgba(168, 85, 247, 0.3); }
+
+    /* Tooltip styles */
+    .info-trigger { cursor: help; position: relative; display: inline-flex; align-items: center; }
+    .info-trigger .info-icon {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); color: #666;
+      font-size: 9px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 5px; transition: all 0.2s; flex-shrink: 0;
+    }
+    .info-trigger:hover .info-icon { background: rgba(168,85,247,0.2); color: #a855f7; }
   </style>
 </head>
 <body>
@@ -80,6 +90,17 @@
       A5: "Thinking", A6: "Workflow", A7: "Orchestration", A8: "Multiplication",
     };
 
+    const ABILITY_DESCRIPTIONS = {
+      A1: "Knowing WHAT to give AI vs keep for yourself",
+      A2: "How well you frame problems, context, and constraints",
+      A3: "Catching errors, hallucinations, and plausible-but-wrong reasoning",
+      A4: "Refining substance (not just format) through multi-turn interaction",
+      A5: "Using AI as a genuine thinking partner to extend your cognition",
+      A6: "Designing repeatable workflows that incorporate AI at the right points",
+      A7: "Managing multiple AI tools, agents, and models in concert",
+      A8: "Making other people more productive with AI",
+    };
+
     const TIER_COLORS = {
       Explorer: "#6b7280", Practitioner: "#22c55e", Operator: "#3b82f6",
       Strategist: "#a855f7", Architect: "#f97316", Pioneer: "#ef4444",
@@ -96,15 +117,43 @@
       Diamond: { min: 1400, max: Infinity },
     };
 
+    const BAND_INFO = {
+      Bronze:   { label: "Developing Eye",    desc: "You're learning to spot AI mistakes. Most outputs still look good to you." },
+      Silver:   { label: "Skeptical Mind",     desc: "You question AI output sometimes, but confident-sounding errors still slip through." },
+      Gold:     { label: "Sharp Evaluator",    desc: "You reliably catch common traps. You know that polished doesn't mean correct." },
+      Platinum: { label: "Artifact Resistant",  desc: "You see through formatting tricks and evaluate reasoning, not presentation." },
+      Diamond:  { label: "Judgment Elite",     desc: "Top-tier evaluator. You catch subtle errors that most professionals miss." },
+    };
+
     const LEVEL_NAMES = {
       0: "Non-User", 1: "Experimenter", 2: "Functional User",
       3: "Effective Practitioner", 4: "Strategic Deployer",
       5: "System Architect", 6: "Pioneer",
     };
 
+    const LEVEL_DESCRIPTIONS = {
+      0: "Does not use AI in their work",
+      1: "Occasional AI use, takes output at face value",
+      2: "Regular user with real but inconsistent gains",
+      3: "Evaluates critically, genuine thinking partner with AI",
+      4: "Designs workflows, multiplies team performance",
+      5: "Orchestrates multi-agent systems, builds self-improving workflows",
+      6: "Pushes the frontier, creates new paradigms",
+    };
+
+    const TIER_FOR_LEVEL = {
+      0: "Explorer", 1: "Explorer", 2: "Practitioner",
+      3: "Operator", 4: "Strategist", 5: "Architect", 6: "Pioneer",
+    };
+
     const QUEUE_ICONS = {
       flash_card: "\uD83C\uDCCF", growth_exercise: "\uD83C\uDFAF",
       trap_review: "\uD83D\uDD34", pending_sharpen: "\u23F3",
+    };
+
+    const QUEUE_LABELS = {
+      flash_card: "Flash Card", growth_exercise: "Growth Exercise",
+      trap_review: "Trap Review", pending_sharpen: "Practice",
     };
 
     // ─── Helpers ─────────────────────────────────────────
@@ -159,6 +208,33 @@
         padding: 16,
       },
     };
+
+    // ─── Info Popover Component ──────────────────────────
+    function InfoPopover({ visible, onClose, title, children }) {
+      if (!visible) return null;
+      return (
+        <div onClick={onClose} style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 24, animation: "fadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            ...S.card, maxWidth: 400, width: "100%",
+            border: "1px solid #333", boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{title}</span>
+              <button onClick={onClose} style={{
+                background: "none", border: "none", color: "#666", fontSize: 18,
+                cursor: "pointer", padding: "4px 8px", lineHeight: 1,
+              }}>&times;</button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
 
     // ─── Entry Screen ────────────────────────────────────
     function EntryScreen({ onLoad }) {
@@ -238,8 +314,8 @@
     function TabBar({ activeTab, onTabChange }) {
       const tabs = [
         { id: "proof", label: "Proof Card" },
-        { id: "learning", label: "Learning" },
-        { id: "activity", label: "Activity" },
+        { id: "learning", label: "My Learning" },
+        { id: "journey", label: "Journey" },
       ];
       return (
         <div style={{
@@ -262,6 +338,10 @@
     // ─── Proof Card Tab ──────────────────────────────────
     function ProofCardTab({ userScore, proveResults }) {
       const [toastVisible, setToastVisible] = useState(false);
+      const [showScoreInfo, setShowScoreInfo] = useState(false);
+      const [showLevelInfo, setShowLevelInfo] = useState(false);
+      const [showAbilityInfo, setShowAbilityInfo] = useState(null); // ability key or null
+
       const score = userScore?.proof_score || 1000;
       const band = userScore?.proof_band || getBandFromScore(score);
       const tier = userScore?.tier || "Explorer";
@@ -274,27 +354,26 @@
       const bandColor = BAND_COLORS[band] || "#cd7f32";
       const tierColor = TIER_COLORS[tier] || "#6b7280";
       const nextBand = getNextBand(band, score);
+      const bandInfo = BAND_INFO[band] || BAND_INFO.Bronze;
 
-      // Detect brand new user with no activity
       const isNewUser = totalSaves === 0 && totalElevates === 0 && totalProves === 0 && Object.keys(abilities).length === 0;
 
       if (isNewUser) {
         return (
           <div style={{ animation: "fadeIn 0.4s ease" }}>
             <div style={{ ...S.card, textAlign: "center", padding: 40 }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>{"\uD83D\uDE80"}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
                 Welcome to LearnTube
               </div>
               <div style={{ fontSize: 14, color: "#888", lineHeight: 1.6, maxWidth: 340, margin: "0 auto 24px" }}>
                 Your AI Readiness profile starts building the moment you use Claude with LearnTube tools.
-                Have a real conversation, and your abilities, Proof Score, and level will appear here.
               </div>
               <div style={{ ...S.card, background: "#0a0a0a", padding: 20, textAlign: "left" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", marginBottom: 12 }}>Getting Started</div>
                 <div style={{ fontSize: 13, color: "#999", lineHeight: 1.8 }}>
                   1. Open Claude Desktop with LearnTube connected<br />
-                  2. Work on any real task — the tools activate automatically<br />
+                  2. Work on any real task &mdash; the tools activate automatically<br />
                   3. Come back here to see your profile grow
                 </div>
               </div>
@@ -312,18 +391,10 @@
       const radarData = Object.entries(ABILITIES)
         .map(([key, name]) => {
           const a = abilities[key];
-          return a && a.score != null ? { ability: name, score: Math.round(a.score * 10) / 10, fullMark: 6 } : null;
+          return a && a.score != null ? { ability: name, abilityKey: key, score: Math.round(a.score * 10) / 10, fullMark: 6 } : null;
         })
         .filter(Boolean);
       const hasRadar = radarData.length > 0;
-
-      // Band label
-      const bandTitle = band === "Bronze" ? "Developing Eye"
-        : band === "Silver" ? "Skeptical Mind"
-        : band === "Gold" ? "Sharp Evaluator"
-        : band === "Platinum" ? "Artifact Resistant"
-        : band === "Diamond" ? "Judgment Elite"
-        : "Skeptical Mind";
 
       function handleShare() {
         const grid = proveGrid.map(c => c ? "\uD83D\uDFE9" : "\uD83D\uDFE5").join("");
@@ -337,25 +408,79 @@
       return (
         <div style={{ animation: "slideUp 0.4s ease" }}>
           {/* Proof Score Hero */}
-          <div style={{
-            textAlign: "center", padding: "40px 20px 32px",
-            background: `radial-gradient(ellipse at 50% 0%, ${bandColor}11 0%, transparent 70%)`,
-            borderRadius: 20, border: "1px solid #222222", marginBottom: 20,
-          }}>
+          <div
+            onClick={() => setShowScoreInfo(true)}
+            style={{
+              textAlign: "center", padding: "40px 20px 32px",
+              background: `radial-gradient(ellipse at 50% 0%, ${bandColor}11 0%, transparent 70%)`,
+              borderRadius: 20, border: "1px solid #222222", marginBottom: 20,
+              cursor: "pointer", transition: "border-color 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#333"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#222222"}
+          >
             <div style={{
               fontSize: 72, fontWeight: 900, lineHeight: 1, color: "#fff",
               letterSpacing: "-2px", marginBottom: 8,
               textShadow: `0 0 60px ${bandColor}33`,
             }}>{score}</div>
-            <div style={{
-              fontSize: 16, fontWeight: 600, color: bandColor, marginBottom: 6,
-            }}>{band} — {bandTitle}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: bandColor }}>
+                {band} &mdash; {bandInfo.label}
+              </span>
+              <span style={{
+                width: 16, height: 16, borderRadius: "50%",
+                background: "rgba(255,255,255,0.06)", color: "#555",
+                fontSize: 9, fontWeight: 700,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+              }}>?</span>
+            </div>
             {nextBand && (
-              <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: "#555", marginTop: 8 }}>
                 {nextBand.pointsNeeded} points to {nextBand.name}
               </div>
             )}
           </div>
+
+          {/* Score Info Popover */}
+          <InfoPopover visible={showScoreInfo} onClose={() => setShowScoreInfo(false)} title="Proof Score">
+            <p style={{ fontSize: 13, color: "#999", lineHeight: 1.7, marginBottom: 16 }}>
+              Your Proof Score measures how well you catch AI mistakes. It uses an Elo rating system
+              (like chess) &mdash; you gain points for spotting flawed AI output and lose points for missing errors.
+              High confidence when wrong costs more. Low confidence when right earns a bonus.
+            </p>
+            <div style={{ fontSize: 12, color: "#666", marginBottom: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Band Ladder
+            </div>
+            {Object.entries(BAND_INFO).map(([b, info]) => {
+              const range = BAND_THRESHOLDS[b];
+              const isCurrent = b === band;
+              return (
+                <div key={b} style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                  borderRadius: 8, marginBottom: 4,
+                  background: isCurrent ? `${BAND_COLORS[b]}12` : "transparent",
+                  border: isCurrent ? `1px solid ${BAND_COLORS[b]}33` : "1px solid transparent",
+                }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: BAND_COLORS[b], flexShrink: 0,
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? "#fff" : "#888" }}>
+                        {b} &mdash; {info.label}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#555", flexShrink: 0, marginLeft: 8 }}>
+                        {range.max === Infinity ? `${range.min}+` : `${range.min}-${range.max}`}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{info.desc}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </InfoPopover>
 
           {/* Radar Chart */}
           {hasRadar && (
@@ -385,8 +510,63 @@
                   />
                 </RadarChart>
               </ResponsiveContainer>
+              {/* Ability breakdown below radar */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 12px 0", justifyContent: "center" }}>
+                {radarData.map(d => (
+                  <button key={d.abilityKey} onClick={() => setShowAbilityInfo(d.abilityKey)} style={{
+                    background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: 8,
+                    padding: "6px 10px", cursor: "pointer", fontFamily: "inherit",
+                    display: "flex", alignItems: "center", gap: 6, transition: "border-color 0.2s",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = "#333"}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = "#1a1a1a"}
+                  >
+                    <span style={{ fontSize: 11, color: "#888" }}>{d.ability}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#a855f7" }}>{d.score}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Ability Info Popover */}
+          <InfoPopover visible={!!showAbilityInfo} onClose={() => setShowAbilityInfo(null)}
+            title={showAbilityInfo ? `${showAbilityInfo}: ${ABILITIES[showAbilityInfo]}` : ""}>
+            {showAbilityInfo && (
+              <>
+                <p style={{ fontSize: 13, color: "#999", lineHeight: 1.7, marginBottom: 16 }}>
+                  {ABILITY_DESCRIPTIONS[showAbilityInfo]}
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div style={{
+                    fontSize: 32, fontWeight: 900, color: "#a855f7",
+                  }}>{abilities[showAbilityInfo]?.score != null ? (Math.round(abilities[showAbilityInfo].score * 10) / 10) : "?"}</div>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#888" }}>out of 6.0</div>
+                    <div style={{ fontSize: 12, color: "#555" }}>
+                      Level {Math.floor(abilities[showAbilityInfo]?.score || 0)} equivalent
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Score Scale
+                </div>
+                {[
+                  { s: "0-1", l: "Non-User / Experimenter" },
+                  { s: "2", l: "Functional User" },
+                  { s: "3", l: "Effective Practitioner" },
+                  { s: "4", l: "Strategic Deployer" },
+                  { s: "5", l: "System Architect" },
+                  { s: "6", l: "Pioneer" },
+                ].map(r => (
+                  <div key={r.s} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}>
+                    <span style={{ color: "#888" }}>{r.l}</span>
+                    <span style={{ color: "#555" }}>{r.s}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </InfoPopover>
 
           {/* Stats Row */}
           <div style={{
@@ -395,13 +575,26 @@
             gap: 12, marginBottom: 20,
           }}>
             {/* Level Badge */}
-            <div style={{
-              ...S.cardCompact,
-              background: `linear-gradient(135deg, ${tierColor}18, ${tierColor}08)`,
-              borderColor: `${tierColor}33`,
-              textAlign: "center",
-            }}>
-              <div style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Level</div>
+            <div
+              onClick={() => setShowLevelInfo(true)}
+              style={{
+                ...S.cardCompact,
+                background: `linear-gradient(135deg, ${tierColor}18, ${tierColor}08)`,
+                borderColor: `${tierColor}33`,
+                textAlign: "center", cursor: "pointer", transition: "border-color 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = `${tierColor}66`}
+              onMouseLeave={e => e.currentTarget.style.borderColor = `${tierColor}33`}
+            >
+              <div style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                Level
+                <span style={{
+                  width: 12, height: 12, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.06)", color: "#555",
+                  fontSize: 8, fontWeight: 700,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>?</span>
+              </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: tierColor }}>L{level}</div>
               <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{LEVEL_NAMES[level]}</div>
             </div>
@@ -427,10 +620,47 @@
 
             {/* Total Saves */}
             <div style={{ ...S.cardCompact, textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Saves</div>
+              <div style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Insights</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#3b82f6" }}>{totalSaves}</div>
             </div>
           </div>
+
+          {/* Level Info Popover */}
+          <InfoPopover visible={showLevelInfo} onClose={() => setShowLevelInfo(false)} title="AI Readiness Level">
+            <p style={{ fontSize: 13, color: "#999", lineHeight: 1.7, marginBottom: 16 }}>
+              Your overall AI Readiness level (0-6) is a weighted average of your 8 ability scores.
+              Delegation (A1), Evaluation (A3), and Thinking (A5) carry the most weight.
+              Evaluation is the gatekeeper &mdash; you can't reach Level 3+ without A3 &ge; 3.
+            </p>
+            <div style={{ fontSize: 12, color: "#666", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Level Ladder
+            </div>
+            {Object.entries(LEVEL_NAMES).map(([lvl, name]) => {
+              const isCurrent = parseInt(lvl) === level;
+              const tc = TIER_COLORS[TIER_FOR_LEVEL[lvl]] || "#6b7280";
+              return (
+                <div key={lvl} style={{
+                  display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 12px",
+                  borderRadius: 8, marginBottom: 2,
+                  background: isCurrent ? `${tc}12` : "transparent",
+                  border: isCurrent ? `1px solid ${tc}33` : "1px solid transparent",
+                }}>
+                  <div style={{
+                    fontSize: 14, fontWeight: 800, color: tc, minWidth: 24, flexShrink: 0,
+                  }}>L{lvl}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? "#fff" : "#888" }}>
+                      {name}
+                      <span style={{ fontSize: 11, color: "#444", marginLeft: 6 }}>
+                        ({TIER_FOR_LEVEL[lvl]})
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>{LEVEL_DESCRIPTIONS[lvl]}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </InfoPopover>
 
           {/* Share Button */}
           <button onClick={handleShare} style={{
@@ -451,12 +681,29 @@
       );
     }
 
-    // ─── Learning Queue Tab ──────────────────────────────
-    function LearningTab({ userId, queue, setQueue }) {
+    // ─── My Learning Tab ─────────────────────────────────
+    function LearningTab({ userId, queue, setQueue, saves }) {
       const [expanded, setExpanded] = useState(null);
       const [updating, setUpdating] = useState(null);
+      const [filter, setFilter] = useState("all"); // all, queue, insights
+      const [searchQuery, setSearchQuery] = useState("");
 
-      const pendingCount = (queue || []).filter(i => i.status === "pending").length;
+      const pendingQueue = (queue || []).filter(i => i.status === "pending");
+      const reviewedQueue = (queue || []).filter(i => i.status === "reviewed" || i.status === "mastered");
+
+      // Filter items based on selected filter
+      const filteredSaves = useMemo(() => {
+        let items = saves || [];
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          items = items.filter(s =>
+            (s.insight || "").toLowerCase().includes(q) ||
+            (s.tags || []).some(t => t.toLowerCase().includes(q)) ||
+            (s.domain || "").toLowerCase().includes(q)
+          );
+        }
+        return items;
+      }, [saves, searchQuery]);
 
       async function markReviewed(item) {
         setUpdating(item.id);
@@ -472,15 +719,15 @@
         setUpdating(null);
       }
 
-      if (!queue || queue.length === 0) {
+      const hasAnyContent = (queue && queue.length > 0) || (saves && saves.length > 0);
+
+      if (!hasAnyContent) {
         return (
           <div style={{ animation: "slideUp 0.4s ease" }}>
-            <div style={{
-              ...S.card, textAlign: "center", padding: "64px 24px",
-            }}>
+            <div style={{ ...S.card, textAlign: "center", padding: "64px 24px" }}>
               <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>{"\uD83D\uDCDA"}</div>
               <p style={{ fontSize: 15, color: "#6b7280", maxWidth: 320, margin: "0 auto", lineHeight: 1.6 }}>
-                Your learning queue is empty. Use Claude with LearnTube tools to generate flash cards, exercises, and reviews.
+                Your learning tab is empty. Use Claude with LearnTube tools to save insights, get evaluated, and take challenges.
               </p>
             </div>
           </div>
@@ -489,169 +736,401 @@
 
       return (
         <div style={{ animation: "slideUp 0.4s ease" }}>
-          <div style={{ marginBottom: 20 }}>
-            <span style={{ fontSize: 14, color: "#6b7280" }}>
-              <span style={{ fontWeight: 700, color: "#fff" }}>{pendingCount}</span> items waiting
-            </span>
+          {/* Filter tabs */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {[
+              { id: "all", label: "All", count: pendingQueue.length + (saves || []).length },
+              { id: "queue", label: "Practice Queue", count: pendingQueue.length },
+              { id: "insights", label: "Saved Insights", count: (saves || []).length },
+            ].map(f => (
+              <button key={f.id} onClick={() => setFilter(f.id)} style={{
+                background: filter === f.id ? "#1a1a2e" : "transparent",
+                border: `1px solid ${filter === f.id ? "#333" : "#1a1a1a"}`,
+                borderRadius: 8, padding: "6px 14px", cursor: "pointer",
+                fontFamily: "inherit", fontSize: 12, fontWeight: 500,
+                color: filter === f.id ? "#fff" : "#666",
+                transition: "all 0.2s",
+              }}>
+                {f.label} <span style={{ color: "#555", marginLeft: 4 }}>{f.count}</span>
+              </button>
+            ))}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {queue.map(item => {
-              const isExpanded = expanded === item.id;
-              const icon = QUEUE_ICONS[item.type] || "\uD83D\uDCCB";
-              const isReviewed = item.status === "reviewed" || item.status === "mastered";
+          {/* Search (only for insights) */}
+          {(filter === "insights" || filter === "all") && (saves || []).length > 3 && (
+            <input
+              type="text"
+              placeholder="Search insights..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%", background: "#0a0a0a", border: "1px solid #1a1a1a",
+                borderRadius: 10, padding: "10px 16px", fontSize: 13,
+                color: "#fff", outline: "none", fontFamily: "inherit",
+                marginBottom: 16, transition: "border-color 0.2s",
+              }}
+              onFocus={e => e.target.style.borderColor = "#333"}
+              onBlur={e => e.target.style.borderColor = "#1a1a1a"}
+            />
+          )}
 
-              return (
-                <div key={item.id}
-                  onClick={() => setExpanded(isExpanded ? null : item.id)}
-                  style={{
-                    ...S.card,
-                    padding: 0, overflow: "hidden",
-                    cursor: "pointer",
-                    opacity: isReviewed ? 0.5 : 1,
-                    transition: "all 0.2s",
-                    borderColor: isExpanded ? "#333" : "#222222",
-                  }}
-                >
-                  <div style={{ padding: "16px 20px" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                      <span style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>{icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                          <span style={{
-                            fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-                            letterSpacing: "0.08em", color: "#6b7280",
-                          }}>{(item.type || "").replace(/_/g, " ")}</span>
-                          {item.domain && (
-                            <span style={{
-                              fontSize: 10, padding: "2px 8px", borderRadius: 6,
-                              background: "#1a1a2e", color: "#8888aa", fontWeight: 500,
-                            }}>{item.domain}</span>
-                          )}
-                          {isReviewed && (
-                            <span style={{
-                              fontSize: 10, padding: "2px 8px", borderRadius: 6,
-                              background: "#22c55e18", color: "#22c55e", fontWeight: 600,
-                            }}>{"\u2713"} reviewed</span>
-                          )}
-                        </div>
-                        <p style={{
-                          fontSize: 14, color: "#e5e5e5", lineHeight: 1.5,
-                          wordBreak: "break-word",
-                        }}>{item.front}</p>
-                        <div style={{ fontSize: 12, color: "#444", marginTop: 6 }}>
-                          {timeAgo(item.created_at)}
+          {/* Practice Queue Section */}
+          {(filter === "all" || filter === "queue") && pendingQueue.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              {filter === "all" && (
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+                  Practice Queue &mdash; {pendingQueue.length} items
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {pendingQueue.map(item => {
+                  const isExpanded = expanded === item.id;
+                  const icon = QUEUE_ICONS[item.type] || "\uD83D\uDCCB";
+                  const label = QUEUE_LABELS[item.type] || item.type;
+
+                  return (
+                    <div key={item.id}
+                      onClick={() => setExpanded(isExpanded ? null : item.id)}
+                      style={{
+                        ...S.card, padding: 0, overflow: "hidden",
+                        cursor: "pointer", transition: "all 0.2s",
+                        borderColor: isExpanded ? "#333" : "#222222",
+                      }}
+                    >
+                      <div style={{ padding: "14px 18px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                          <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                              <span style={{
+                                fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                                color: item.type === "trap_review" ? "#ef4444" : item.type === "growth_exercise" ? "#22c55e" : "#6b7280",
+                              }}>{label}</span>
+                              {item.domain && (
+                                <span style={{
+                                  fontSize: 10, padding: "2px 8px", borderRadius: 6,
+                                  background: "#1a1a2e", color: "#8888aa", fontWeight: 500,
+                                }}>{item.domain}</span>
+                              )}
+                            </div>
+                            <p style={{ fontSize: 13, color: "#e5e5e5", lineHeight: 1.5, wordBreak: "break-word" }}>
+                              {item.front}
+                            </p>
+                            <div style={{ fontSize: 11, color: "#444", marginTop: 5 }}>{timeAgo(item.created_at)}</div>
+                          </div>
+                          <span style={{ color: "#333", fontSize: 14, flexShrink: 0, marginTop: 2 }}>
+                            {isExpanded ? "\u25B2" : "\u25BC"}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {isExpanded && item.back && (
-                    <div style={{
-                      padding: "0 20px 16px 52px",
-                      borderTop: "1px solid #1a1a1a",
-                      paddingTop: 16,
-                    }} onClick={e => e.stopPropagation()}>
-                      <p style={{
-                        fontSize: 14, color: "#aaa", lineHeight: 1.6,
-                        whiteSpace: "pre-wrap", wordBreak: "break-word",
-                      }}>{item.back}</p>
-                      {!isReviewed && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); markReviewed(item); }}
-                          disabled={updating === item.id}
-                          style={{
-                            marginTop: 14, padding: "10px 20px",
-                            background: updating === item.id ? "#222" : "#22c55e",
-                            color: updating === item.id ? "#666" : "#000",
-                            border: "none", borderRadius: 10, fontSize: 13,
-                            fontWeight: 600, cursor: updating === item.id ? "default" : "pointer",
-                            fontFamily: "inherit", transition: "all 0.2s",
-                          }}
-                        >{updating === item.id ? "Updating..." : "Mark as Reviewed"}</button>
+                      {isExpanded && item.back && (
+                        <div style={{
+                          padding: "0 18px 14px 48px",
+                          borderTop: "1px solid #1a1a1a",
+                          paddingTop: 14,
+                        }} onClick={e => e.stopPropagation()}>
+                          <p style={{ fontSize: 13, color: "#aaa", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            {item.back}
+                          </p>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markReviewed(item); }}
+                            disabled={updating === item.id}
+                            style={{
+                              marginTop: 12, padding: "8px 18px",
+                              background: updating === item.id ? "#222" : "#22c55e",
+                              color: updating === item.id ? "#666" : "#000",
+                              border: "none", borderRadius: 8, fontSize: 12,
+                              fontWeight: 600, cursor: updating === item.id ? "default" : "pointer",
+                              fontFamily: "inherit", transition: "all 0.2s",
+                            }}
+                          >{updating === item.id ? "Updating..." : "\u2713 Got it"}</button>
+                        </div>
                       )}
                     </div>
-                  )}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Reviewed items (collapsed) */}
+          {(filter === "queue") && reviewedQueue.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, color: "#444", marginBottom: 8 }}>
+                {reviewedQueue.length} reviewed
+              </div>
+              {reviewedQueue.slice(0, 5).map(item => (
+                <div key={item.id} style={{ padding: "8px 0", borderBottom: "1px solid #111", opacity: 0.4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14 }}>{QUEUE_ICONS[item.type] || "\uD83D\uDCCB"}</span>
+                    <span style={{ fontSize: 12, color: "#666" }}>{truncate(item.front, 60)}</span>
+                    <span style={{ fontSize: 10, color: "#22c55e", marginLeft: "auto" }}>{"\u2713"}</span>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {/* Saved Insights Section */}
+          {(filter === "all" || filter === "insights") && filteredSaves.length > 0 && (
+            <div>
+              {filter === "all" && (
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+                  Saved Insights &mdash; {filteredSaves.length} total
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {filteredSaves.map(save => {
+                  const isExpanded = expanded === `save-${save.id}`;
+                  return (
+                    <div key={save.id}
+                      onClick={() => setExpanded(isExpanded ? null : `save-${save.id}`)}
+                      style={{
+                        ...S.card, padding: 0, overflow: "hidden",
+                        cursor: "pointer", transition: "all 0.2s",
+                        borderColor: isExpanded ? "#333" : "#222222",
+                      }}
+                    >
+                      <div style={{ padding: "14px 18px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                          <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{"\uD83D\uDCA1"}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, flexWrap: "wrap" }}>
+                              {save.domain && (
+                                <span style={{
+                                  fontSize: 10, padding: "2px 8px", borderRadius: 6,
+                                  background: "#1a1a2e", color: "#8888aa", fontWeight: 500,
+                                }}>{save.domain}</span>
+                              )}
+                              {(save.tags || []).slice(0, 3).map(t => (
+                                <span key={t} style={{
+                                  fontSize: 10, padding: "2px 6px", borderRadius: 4,
+                                  background: "#111", color: "#555", fontWeight: 400,
+                                }}>{t}</span>
+                              ))}
+                            </div>
+                            <p style={{ fontSize: 13, color: "#e5e5e5", lineHeight: 1.5, wordBreak: "break-word" }}>
+                              {isExpanded ? save.insight : truncate(save.insight, 100)}
+                            </p>
+                            <div style={{ fontSize: 11, color: "#444", marginTop: 5 }}>{timeAgo(save.created_at)}</div>
+                          </div>
+                        </div>
+                      </div>
+                      {isExpanded && save.context && (
+                        <div style={{
+                          padding: "0 18px 14px 48px",
+                          borderTop: "1px solid #1a1a1a",
+                          paddingTop: 12,
+                        }} onClick={e => e.stopPropagation()}>
+                          <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Context</div>
+                          <p style={{ fontSize: 12, color: "#888", lineHeight: 1.6 }}>{save.context}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
-    // ─── Activity Feed Tab ───────────────────────────────
-    function ActivityTab({ saves, elevateResults, proveResults }) {
-      const feed = useMemo(() => {
+    // ─── Journey Tab (replaces Activity) ─────────────────
+    function JourneyTab({ saves, elevateResults, proveResults, userScore }) {
+      const abilities = userScore?.abilities || {};
+      const level = userScore?.level || 0;
+
+      // Build weekly summaries
+      const insights = useMemo(() => {
         const items = [];
 
-        (saves || []).forEach(s => {
-          items.push({
-            type: "save",
-            time: s.created_at,
-            text: `\uD83D\uDCDD Saved insight in ${s.domain || "general"}: "${truncate(s.insight, 60)}"`,
-          });
-        });
+        // Summary cards (most valuable)
+        const totalSaves = (saves || []).length;
+        const totalProves = (proveResults || []).length;
+        const correctProves = (proveResults || []).filter(p => p.correct).length;
+        const totalElevates = (elevateResults || []).length;
 
+        if (totalSaves > 0 || totalProves > 0 || totalElevates > 0) {
+          // Ability growth insight
+          const sortedAbilities = Object.entries(abilities)
+            .filter(([, v]) => v?.score != null)
+            .sort((a, b) => b[1].score - a[1].score);
+
+          if (sortedAbilities.length >= 2) {
+            const strongest = sortedAbilities[0];
+            const weakest = sortedAbilities[sortedAbilities.length - 1];
+            items.push({
+              type: "insight", icon: "\uD83D\uDCCA", time: new Date().toISOString(),
+              title: "Your Ability Profile",
+              text: `Your strongest ability is ${ABILITIES[strongest[0]]} (${Math.round(strongest[1].score * 10) / 10}/6) and your biggest growth area is ${ABILITIES[weakest[0]]} (${Math.round(weakest[1].score * 10) / 10}/6).`,
+              color: "#a855f7",
+            });
+          }
+
+          // Prove accuracy insight
+          if (totalProves >= 3) {
+            const accuracy = Math.round((correctProves / totalProves) * 100);
+            const calText = accuracy >= 80 ? "Strong evaluator" : accuracy >= 60 ? "Getting sharper" : "Room to grow";
+            items.push({
+              type: "insight", icon: "\uD83C\uDFAF", time: new Date().toISOString(),
+              title: `${accuracy}% Trap Detection Rate`,
+              text: `You've caught ${correctProves} of ${totalProves} AI traps. ${calText} — the average is around 55%.`,
+              color: accuracy >= 70 ? "#22c55e" : "#f59e0b",
+            });
+          }
+
+          // Domains insight
+          const domains = {};
+          (saves || []).forEach(s => { if (s.domain) domains[s.domain] = (domains[s.domain] || 0) + 1; });
+          const topDomains = Object.entries(domains).sort((a, b) => b[1] - a[1]).slice(0, 3);
+          if (topDomains.length > 0) {
+            items.push({
+              type: "insight", icon: "\uD83E\uDDE0",
+              time: new Date(Date.now() - 1000).toISOString(),
+              title: "Knowledge Domains",
+              text: topDomains.map(([d, c]) => `${d} (${c} insights)`).join(", "),
+              color: "#3b82f6",
+            });
+          }
+
+          // Level journey
+          if (totalElevates > 0) {
+            const latestEval = elevateResults[0];
+            const oldestEval = elevateResults[elevateResults.length - 1];
+            if (latestEval && oldestEval && latestEval.id !== oldestEval.id) {
+              const delta = latestEval.level_estimate - oldestEval.level_estimate;
+              items.push({
+                type: "insight", icon: delta > 0 ? "\uD83D\uDCC8" : "\uD83D\uDCC9",
+                time: new Date(Date.now() - 2000).toISOString(),
+                title: "Level Trajectory",
+                text: delta > 0
+                  ? `You've grown from L${oldestEval.level_estimate} to L${latestEval.level_estimate} across ${totalElevates} evaluations.`
+                  : delta === 0
+                  ? `Holding steady at L${latestEval.level_estimate} across ${totalElevates} evaluations. Consistency is underrated.`
+                  : `Your scores dipped from L${oldestEval.level_estimate} to L${latestEval.level_estimate}. This can happen when you stretch into harder tasks.`,
+                color: delta > 0 ? "#22c55e" : delta === 0 ? "#f59e0b" : "#ef4444",
+              });
+            }
+          }
+        }
+
+        // Chronological events
         (elevateResults || []).forEach(e => {
           const lvlName = LEVEL_NAMES[e.level_estimate] || "";
           items.push({
-            type: "elevate",
+            type: "elevate", icon: "\uD83D\uDCCA",
             time: e.created_at,
-            text: `\uD83D\uDCCA Session evaluated: L${e.level_estimate} ${lvlName}. Growth area: ${truncate(e.level_up_move, 60)}`,
+            title: `Session Evaluated: L${e.level_estimate} ${lvlName}`,
+            text: e.level_up_move ? `Next move: ${truncate(e.level_up_move, 120)}` : "",
+            color: TIER_COLORS[TIER_FOR_LEVEL[e.level_estimate]] || "#6b7280",
           });
         });
 
         (proveResults || []).forEach(p => {
-          const emoji = p.correct ? "\uD83D\uDFE9" : "\uD83D\uDFE5";
-          const verb = p.correct ? "Caught" : "Fell for";
-          const confStr = p.user_confidence != null ? ` Confidence: ${p.user_confidence}/5` : "";
+          const caught = p.correct;
           items.push({
             type: "prove",
+            icon: caught ? "\uD83D\uDFE9" : "\uD83D\uDFE5",
             time: p.created_at,
-            text: `${emoji} ${verb} the ${p.challenge_type || "unknown"} trap.${confStr}`,
+            title: `${caught ? "Caught" : "Missed"} the ${(p.challenge_type || "").replace(/_/g, " ")} trap`,
+            text: p.user_confidence ? `Confidence: ${p.user_confidence}/5${!caught && p.user_confidence >= 4 ? " — overconfident on this one" : ""}` : "",
+            color: caught ? "#22c55e" : "#ef4444",
           });
         });
 
-        items.sort((a, b) => new Date(b.time) - new Date(a.time));
-        return items.slice(0, 50);
-      }, [saves, elevateResults, proveResults]);
+        (saves || []).forEach(s => {
+          items.push({
+            type: "save", icon: "\uD83D\uDCA1",
+            time: s.created_at,
+            title: `Saved insight in ${s.domain || "general"}`,
+            text: truncate(s.insight, 80),
+            color: "#3b82f6",
+          });
+        });
 
-      if (feed.length === 0) {
+        // Sort: insights first (pinned), then chronological
+        const insights = items.filter(i => i.type === "insight");
+        const events = items.filter(i => i.type !== "insight").sort((a, b) => new Date(b.time) - new Date(a.time));
+        return [...insights, ...events].slice(0, 50);
+      }, [saves, elevateResults, proveResults, abilities]);
+
+      if (insights.length === 0) {
         return (
           <div style={{ animation: "slideUp 0.4s ease" }}>
-            <div style={{
-              ...S.card, textAlign: "center", padding: "64px 24px",
-            }}>
+            <div style={{ ...S.card, textAlign: "center", padding: "64px 24px" }}>
               <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>{"\u23F3"}</div>
               <p style={{ fontSize: 15, color: "#6b7280", maxWidth: 320, margin: "0 auto", lineHeight: 1.6 }}>
-                No activity yet. Start using save, elevate, and prove in Claude to see your timeline here.
+                No activity yet. Start using Claude with LearnTube tools to see your journey unfold here.
               </p>
             </div>
           </div>
         );
       }
 
+      const insightCards = insights.filter(i => i.type === "insight");
+      const events = insights.filter(i => i.type !== "insight");
+
       return (
         <div style={{ animation: "slideUp 0.4s ease" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {feed.map((item, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-                gap: 16, padding: "14px 0",
-                borderBottom: i < feed.length - 1 ? "1px solid #151515" : "none",
-              }}>
-                <p style={{
-                  fontSize: 13, color: "#999", lineHeight: 1.5,
-                  flex: 1, minWidth: 0,
-                }}>{item.text}</p>
-                <span style={{
-                  fontSize: 12, color: "#444", whiteSpace: "nowrap", flexShrink: 0,
-                  marginTop: 1,
-                }}>{timeAgo(item.time)}</span>
+          {/* Insight Summary Cards */}
+          {insightCards.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+                Your Analysis
               </div>
-            ))}
-          </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {insightCards.map((item, i) => (
+                  <div key={i} style={{
+                    ...S.cardCompact,
+                    background: `linear-gradient(135deg, ${item.color}08, ${item.color}04)`,
+                    borderColor: `${item.color}22`,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>{item.title}</div>
+                        <div style={{ fontSize: 12, color: "#999", lineHeight: 1.6 }}>{item.text}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          {events.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+                Timeline
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                {events.map((item, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "flex-start", gap: 12,
+                    padding: "12px 0",
+                    borderBottom: i < events.length - 1 ? "1px solid #151515" : "none",
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: "#ccc", fontWeight: 500, marginBottom: 2 }}>
+                        {item.title}
+                      </div>
+                      {item.text && (
+                        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>{item.text}</div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 11, color: "#333", whiteSpace: "nowrap", flexShrink: 0, marginTop: 2 }}>
+                      {timeAgo(item.time)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -725,13 +1204,9 @@
               style={{
                 display: "inline-block",
                 background: "linear-gradient(135deg, #a855f7, #7c3aed)",
-                color: "#fff",
-                textDecoration: "none",
-                padding: "12px 28px",
-                borderRadius: 12,
-                fontSize: 14,
-                fontWeight: 600,
-                fontFamily: "inherit",
+                color: "#fff", textDecoration: "none",
+                padding: "12px 28px", borderRadius: 12,
+                fontSize: 14, fontWeight: 600, fontFamily: "inherit",
                 transition: "opacity 0.2s",
               }}
               onMouseEnter={e => e.target.style.opacity = "0.85"}
@@ -744,7 +1219,6 @@
 
     // ─── Main App ────────────────────────────────────────
     function App() {
-      // URL params
       const urlParams = new URLSearchParams(window.location.search);
       const urlUser = urlParams.get("user");
       const urlCard = urlParams.get("card");
@@ -753,7 +1227,6 @@
         return urlUser || localStorage.getItem("learntube_user") || "";
       });
 
-      // All hooks must be called before any conditional returns
       const [showShareCard] = useState(!!urlCard);
       const [activeTab, setActiveTab] = useState("proof");
       const [loading, setLoading] = useState(false);
@@ -789,7 +1262,6 @@
         setLoading(false);
       }, []);
 
-      // Initial load + auto-load from localStorage/URL
       useEffect(() => {
         if (userId) {
           localStorage.setItem("learntube_user", userId);
@@ -797,23 +1269,16 @@
         }
       }, [userId, loadData]);
 
-      // Polling every 30s when tab is visible
       useEffect(() => {
         if (!userId) return;
-
         function poll() {
-          if (!document.hidden) {
-            loadData(userId);
-          }
+          if (!document.hidden) loadData(userId);
         }
-
         pollRef.current = setInterval(poll, 30000);
         return () => clearInterval(pollRef.current);
       }, [userId, loadData]);
 
-      function handleLogin(name) {
-        setUserId(name);
-      }
+      function handleLogin(name) { setUserId(name); }
 
       function handleLogout() {
         localStorage.removeItem("learntube_user");
@@ -825,12 +1290,10 @@
         setQueue([]);
       }
 
-      // Share card view (after all hooks)
       if (showShareCard && urlCard) {
         return <ShareCardView userId={urlCard} />;
       }
 
-      // Entry screen if no user
       if (!userId) {
         return <EntryScreen onLoad={handleLogin} />;
       }
@@ -877,7 +1340,6 @@
 
           {/* Content */}
           <div style={{ maxWidth: 560, margin: "0 auto", padding: "20px 20px 60px" }}>
-            {/* Error */}
             {error && (
               <div style={{
                 background: "#1a0a0a", border: "1px solid #331111",
@@ -886,7 +1348,6 @@
               }}>Failed to load data: {error}</div>
             )}
 
-            {/* Loading */}
             {loading && !userScore && (
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -897,7 +1358,6 @@
               </div>
             )}
 
-            {/* Loaded content */}
             {(!loading || userScore) && (
               <>
                 <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -907,14 +1367,15 @@
                 )}
 
                 {activeTab === "learning" && (
-                  <LearningTab userId={userId} queue={queue} setQueue={setQueue} />
+                  <LearningTab userId={userId} queue={queue} setQueue={setQueue} saves={saves} />
                 )}
 
-                {activeTab === "activity" && (
-                  <ActivityTab
+                {activeTab === "journey" && (
+                  <JourneyTab
                     saves={saves}
                     elevateResults={elevateResults}
                     proveResults={proveResults}
+                    userScore={userScore}
                   />
                 )}
               </>
