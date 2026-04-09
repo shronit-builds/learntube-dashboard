@@ -91,9 +91,9 @@
     };
 
     const BAND_THRESHOLDS = {
-      Bronze: { min: 0, max: 1099 }, Silver: { min: 1100, max: 1299 },
-      Gold: { min: 1300, max: 1499 }, Platinum: { min: 1500, max: 1799 },
-      Diamond: { min: 1800, max: Infinity },
+      Bronze: { min: 0, max: 799 }, Silver: { min: 800, max: 999 },
+      Gold: { min: 1000, max: 1199 }, Platinum: { min: 1200, max: 1399 },
+      Diamond: { min: 1400, max: Infinity },
     };
 
     const LEVEL_NAMES = {
@@ -126,6 +126,13 @@
     function truncate(str, len) {
       if (!str) return "";
       return str.length > len ? str.substring(0, len) + "..." : str;
+    }
+
+    function getBandFromScore(score) {
+      for (const [band, range] of Object.entries(BAND_THRESHOLDS)) {
+        if (score >= range.min && score <= (range.max === Infinity ? 99999 : range.max)) return band;
+      }
+      return "Bronze";
     }
 
     function getNextBand(currentBand, currentScore) {
@@ -256,7 +263,7 @@
     function ProofCardTab({ userScore, proveResults }) {
       const [toastVisible, setToastVisible] = useState(false);
       const score = userScore?.proof_score || 1000;
-      const band = userScore?.proof_band || "Bronze";
+      const band = userScore?.proof_band || getBandFromScore(score);
       const tier = userScore?.tier || "Explorer";
       const level = userScore?.level || 0;
       const abilities = userScore?.abilities || {};
@@ -281,11 +288,12 @@
       const hasRadar = radarData.length > 0;
 
       // Band label
-      const bandTitle = band === "Bronze" ? "Emerging Thinker"
-        : band === "Silver" ? "Clear Thinker"
+      const bandTitle = band === "Bronze" ? "Developing Eye"
+        : band === "Silver" ? "Skeptical Mind"
         : band === "Gold" ? "Sharp Evaluator"
-        : band === "Platinum" ? "Critical Analyst"
-        : "Calibrated Expert";
+        : band === "Platinum" ? "Artifact Resistant"
+        : band === "Diamond" ? "Judgment Elite"
+        : "Skeptical Mind";
 
       function handleShare() {
         const grid = proveGrid.map(c => c ? "\uD83D\uDFE9" : "\uD83D\uDFE5").join("");
