@@ -269,9 +269,39 @@
       const abilities = userScore?.abilities || {};
       const streak = userScore?.streak_days || 0;
       const totalSaves = userScore?.total_saves || 0;
+      const totalElevates = userScore?.total_elevates || 0;
+      const totalProves = userScore?.total_proves || 0;
       const bandColor = BAND_COLORS[band] || "#cd7f32";
       const tierColor = TIER_COLORS[tier] || "#6b7280";
       const nextBand = getNextBand(band, score);
+
+      // Detect brand new user with no activity
+      const isNewUser = totalSaves === 0 && totalElevates === 0 && totalProves === 0 && Object.keys(abilities).length === 0;
+
+      if (isNewUser) {
+        return (
+          <div style={{ animation: "fadeIn 0.4s ease" }}>
+            <div style={{ ...S.card, textAlign: "center", padding: 40 }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
+                Welcome to LearnTube
+              </div>
+              <div style={{ fontSize: 14, color: "#888", lineHeight: 1.6, maxWidth: 340, margin: "0 auto 24px" }}>
+                Your AI Readiness profile starts building the moment you use Claude with LearnTube tools.
+                Have a real conversation, and your abilities, Proof Score, and level will appear here.
+              </div>
+              <div style={{ ...S.card, background: "#0a0a0a", padding: 20, textAlign: "left" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", marginBottom: 12 }}>Getting Started</div>
+                <div style={{ fontSize: 13, color: "#999", lineHeight: 1.8 }}>
+                  1. Open Claude Desktop with LearnTube connected<br />
+                  2. Work on any real task — the tools activate automatically<br />
+                  3. Come back here to see your profile grow
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       // Prove results from last 7 days
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -689,7 +719,24 @@
                 {weekProves.map((r, i) => <span key={i}>{r.correct ? "\uD83D\uDFE9" : "\uD83D\uDFE5"}</span>)}
               </div>
             )}
-            <div style={{ fontSize: 11, color: "#444" }}>learntube.ai</div>
+            <div style={{ fontSize: 11, color: "#444", marginBottom: 20 }}>LearnTube AI Readiness</div>
+            <a
+              href={`${window.location.origin}${window.location.pathname}`}
+              style={{
+                display: "inline-block",
+                background: "linear-gradient(135deg, #a855f7, #7c3aed)",
+                color: "#fff",
+                textDecoration: "none",
+                padding: "12px 28px",
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: "inherit",
+                transition: "opacity 0.2s",
+              }}
+              onMouseEnter={e => e.target.style.opacity = "0.85"}
+              onMouseLeave={e => e.target.style.opacity = "1"}
+            >Get Your Own Score</a>
           </div>
         </div>
       );
@@ -702,14 +749,12 @@
       const urlUser = urlParams.get("user");
       const urlCard = urlParams.get("card");
 
-      // If ?card=xxx, show share-only view
-      if (urlCard) {
-        return <ShareCardView userId={urlCard} />;
-      }
-
       const [userId, setUserId] = useState(() => {
         return urlUser || localStorage.getItem("learntube_user") || "";
       });
+
+      // All hooks must be called before any conditional returns
+      const [showShareCard] = useState(!!urlCard);
       const [activeTab, setActiveTab] = useState("proof");
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState(null);
@@ -778,6 +823,11 @@
         setProveResults([]);
         setElevateResults([]);
         setQueue([]);
+      }
+
+      // Share card view (after all hooks)
+      if (showShareCard && urlCard) {
+        return <ShareCardView userId={urlCard} />;
       }
 
       // Entry screen if no user
