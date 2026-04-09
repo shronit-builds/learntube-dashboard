@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LearnTube AI Readiness</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #000; color: #fff; min-height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    /* Utility classes (subset of Tailwind) */
+    .flex { display: flex; } .flex-col { flex-direction: column; } .flex-wrap { flex-wrap: wrap; }
+    .items-center { align-items: center; } .justify-center { justify-content: center; } .justify-between { justify-content: space-between; }
+    .gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-6 { gap: 24px; }
+    .p-4 { padding: 16px; } .p-6 { padding: 24px; } .p-8 { padding: 32px; }
+    .px-3 { padding-left: 12px; padding-right: 12px; } .px-4 { padding-left: 16px; padding-right: 16px; }
+    .py-1 { padding-top: 4px; padding-bottom: 4px; } .py-3 { padding-top: 12px; padding-bottom: 12px; } .py-6 { padding-top: 24px; padding-bottom: 24px; } .py-8 { padding-top: 32px; padding-bottom: 32px; }
+    .mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; } .mt-4 { margin-top: 16px; } .mb-1 { margin-top: 4px; } .mb-2 { margin-bottom: 8px; } .mb-4 { margin-bottom: 16px; } .mb-5 { margin-bottom: 20px; }
+    .mx-auto { margin-left: auto; margin-right: auto; } .ml-2 { margin-left: 8px; }
+    .max-w-5xl { max-width: 1024px; } .min-w-20 { min-width: 80px; }
+    .w-full { width: 100%; } .w-5 { width: 20px; } .w-7 { width: 28px; } .w-8 { width: 32px; }
+    .h-5 { height: 20px; } .h-7 { height: 28px; } .h-8 { height: 32px; } .h-full { height: 100%; }
+    .text-center { text-align: center; }
+    .text-xs { font-size: 12px; } .text-sm { font-size: 14px; } .text-lg { font-size: 18px; } .text-xl { font-size: 20px; } .text-2xl { font-size: 24px; } .text-3xl { font-size: 30px; } .text-4xl { font-size: 36px; } .text-7xl { font-size: 72px; line-height: 1; }
+    .font-medium { font-weight: 500; } .font-semibold { font-weight: 600; } .font-bold { font-weight: 700; } .font-black { font-weight: 900; }
+    .uppercase { text-transform: uppercase; } .tracking-wider { letter-spacing: 0.05em; } .leading-relaxed { line-height: 1.625; }
+    .rounded-md { border-radius: 6px; } .rounded-lg { border-radius: 8px; } .rounded-xl { border-radius: 12px; } .rounded-2xl { border-radius: 16px; } .rounded-full { border-radius: 9999px; }
+    .overflow-hidden { overflow: hidden; } .overflow-y-auto { overflow-y: auto; }
+    .relative { position: relative; } .absolute { position: absolute; } .sticky { position: sticky; }
+    .top-0 { top: 0; } .z-10 { z-index: 10; } .z-50 { z-index: 50; }
+    .cursor-pointer { cursor: pointer; } .italic { font-style: italic; }
+    .space-y-3 > * + * { margin-top: 12px; } .space-y-6 > * + * { margin-top: 24px; }
+    .inline-block { display: inline-block; }
+    .grid { display: grid; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+
+    .bg-black { background: #000; } .bg-gray-800 { background: #1f2937; } .bg-gray-900 { background: #111827; }
+    .text-white { color: #fff; } .text-gray-200 { color: #e5e7eb; } .text-gray-300 { color: #d1d5db; } .text-gray-400 { color: #9ca3af; } .text-gray-500 { color: #6b7280; } .text-gray-600 { color: #4b5563; }
+    .text-emerald-400 { color: #34d399; } .text-amber-400 { color: #fbbf24; } .text-violet-400 { color: #a78bfa; }
+    .border { border-width: 1px; } .border-gray-700 { border-color: #374151; } .border-gray-800 { border-color: #1f2937; }
+
+    .card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; }
+    .stat-pill { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 16px; background: #1f2937; border-radius: 12px; min-width: 80px; }
+    .insight-card { padding: 16px; background: #1f2937; border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+    .insight-card:hover { background: #263243; }
+
+    .topbar { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); background: rgba(0,0,0,0.8); border-bottom: 1px solid #1f2937; }
+    .topbar-inner { max-width: 1024px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+
+    input.uid-input { background: #111827; border: 1px solid #374151; border-radius: 8px; padding: 6px 12px; font-size: 14px; color: #fff; width: 144px; outline: none; font-family: inherit; }
+    input.uid-input:focus { border-color: #8b5cf6; }
+    button.btn { padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    button.btn-primary { background: #7c3aed; color: #fff; } button.btn-primary:hover { background: #6d28d9; }
+    button.btn-secondary { background: #1f2937; color: #fff; } button.btn-secondary:hover { background: #374151; }
+
+    .grid-1-3 { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    .grid-1-2 { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 768px) {
+      .grid-1-3 { grid-template-columns: 1fr 2fr; }
+      .grid-1-2 { grid-template-columns: 1fr 1fr; }
+    }
+
+    .ability-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .ability-cell { text-align: center; padding: 8px; background: #1f2937; border-radius: 8px; }
+
+    .max-h-96 { max-height: 384px; } .max-h-64 { max-height: 256px; }
+    .results-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+    code { background: #1e1b4b; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+    const { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, Cell } = Recharts;
+
+    // ─── Config ──────────────────────────────────
+    const SB_URL = "https://ctindecnqexjzwteigff.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0aW5kZWNucWV4anp3dGVpZ2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyODM0MTcsImV4cCI6MjA4OTg1OTQxN30.iI-XOxRlN_J2XlK6q78XKgqMHAajMuqd2_791Hok_VE";
+    const hdrs = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
+    async function q(table, params = "") {
+      const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: hdrs });
+      if (!res.ok) throw new Error(`${table}: ${res.statusText}`);
+      return res.json();
+    }
+
+    const ABILITIES = {
+      A1: { short: "Delegation", full: "AI Problem Delegation" },
+      A2: { short: "Communication", full: "AI Communication" },
+      A3: { short: "Evaluation", full: "AI Output Evaluation" },
+      A4: { short: "Iteration", full: "AI-Assisted Iteration" },
+      A5: { short: "Thinking", full: "AI-Augmented Thinking" },
+      A6: { short: "Workflow", full: "AI Workflow Design" },
+      A7: { short: "Orchestration", full: "AI System Orchestration" },
+      A8: { short: "Multiplication", full: "AI Multiplication" },
+    };
+
+    const TIER_CFG = {
+      Explorer:     { color: "#6B7280", bg: "#1F2937", accent: "#374151" },
+      Practitioner: { color: "#10B981", bg: "#064E3B", accent: "#065F46" },
+      Operator:     { color: "#3B82F6", bg: "#1E3A5F", accent: "#1E40AF" },
+      Strategist:   { color: "#8B5CF6", bg: "#2E1065", accent: "#4C1D95" },
+      Architect:    { color: "#F97316", bg: "#431407", accent: "#7C2D12" },
+      Pioneer:      { color: "#EF4444", bg: "#450A0A", accent: "#7F1D1D" },
+    };
+
+    const LVL_NAMES = { 0: "Non-User", 1: "Experimenter", 2: "Functional User", 3: "Effective Practitioner", 4: "Strategic Deployer", 5: "System Architect", 6: "Pioneer" };
+
+    // ─── Components ──────────────────────────────
+    function TierBadge({ tier, level }) {
+      const c = TIER_CFG[tier] || TIER_CFG.Explorer;
+      return (
+        <div className="relative overflow-hidden rounded-2xl p-8 text-center" style={{ background: `linear-gradient(135deg, ${c.bg}, ${c.accent})`, border: `1px solid ${c.color}33` }}>
+          <div className="absolute" style={{ top: 0, right: 0, width: 160, height: 160, borderRadius: "50%", opacity: 0.05, background: c.color, transform: "translate(30%, -30%)" }} />
+          <div className="relative z-10">
+            <div className="text-7xl font-black mb-2" style={{ color: c.color }}>L{level}</div>
+            <div className="text-xl font-semibold text-white mb-2">{LVL_NAMES[level] || "Non-User"}</div>
+            <div className="inline-block px-3 py-1 rounded-full text-sm font-medium" style={{ background: `${c.color}22`, color: c.color, border: `1px solid ${c.color}44` }}>{tier}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function StatPill({ label, value, color }) {
+      return (
+        <div className="stat-pill">
+          <span className="text-2xl font-bold" style={{ color }}>{value}</span>
+          <span className="text-xs text-gray-400 uppercase tracking-wider">{label}</span>
+        </div>
+      );
+    }
+
+    function AbilityRadar({ abilities }) {
+      const data = Object.entries(ABILITIES).map(([k, v]) => {
+        const a = abilities?.[k];
+        return { ability: v.short, score: a?.score ? Math.round(a.score * 10) / 10 : 0, fullMark: 6, key: k, obs: a?.observations || 0 };
+      });
+      const hasData = data.some(d => d.score > 0);
+
+      return (
+        <div className="card">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-white">Ability Radar</h2>
+            <p className="text-sm text-gray-400 mt-1">{hasData ? "Your AI skill profile across 8 dimensions" : "Complete an Elevate session to start mapping your abilities"}</p>
+          </div>
+          {hasData ? (
+            <div className="flex flex-col items-center">
+              <ResponsiveContainer width="100%" height={320}>
+                <RadarChart data={data} cx="50%" cy="50%" outerRadius="75%">
+                  <PolarGrid stroke="#374151" />
+                  <PolarAngleAxis dataKey="ability" tick={{ fill: "#9CA3AF", fontSize: 12 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 6]} tick={{ fill: "#6B7280", fontSize: 10 }} tickCount={4} />
+                  <Radar name="Score" dataKey="score" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.25} strokeWidth={2} dot={{ r: 4, fill: "#8B5CF6" }} />
+                </RadarChart>
+              </ResponsiveContainer>
+              <div className="ability-grid w-full mt-2">
+                {data.filter(d => d.score > 0).map(d => (
+                  <div key={d.key} className="ability-cell">
+                    <div className="text-xs text-gray-400">{d.ability}</div>
+                    <div className="text-sm font-bold text-white">{d.score}/6</div>
+                    <div className="text-xs text-gray-500">{d.obs} obs</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center" style={{ height: 192 }}>
+              <div className="text-center text-gray-500">
+                <div style={{ fontSize: 36, marginBottom: 8 }}>&#x1f4ca;</div>
+                <p>No ability data yet</p>
+                <p className="text-xs mt-1">Use <code className="text-violet-400">elevate</code> in Claude to start tracking</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function ProvePerformance({ proveResults }) {
+      if (!proveResults?.length) {
+        return (
+          <div className="card">
+            <h2 className="text-lg font-semibold text-white mb-4">Spot the Flaw</h2>
+            <div className="flex items-center justify-center" style={{ height: 128 }}>
+              <div className="text-center text-gray-500">
+                <div style={{ fontSize: 30, marginBottom: 8 }}>&#x1f3af;</div>
+                <p>No challenges yet</p>
+                <p className="text-xs mt-1">Use <code className="text-violet-400">prove</code> in Claude</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const correct = proveResults.filter(r => r.correct).length;
+      const total = proveResults.length;
+      const accuracy = Math.round((correct / total) * 100);
+      const wrong = proveResults.filter(r => !r.correct);
+      const avgConfWrong = wrong.length ? (wrong.reduce((s, r) => s + r.user_confidence, 0) / wrong.length).toFixed(1) : "N/A";
+
+      const trapStats = {};
+      proveResults.forEach(r => {
+        if (!trapStats[r.challenge_type]) trapStats[r.challenge_type] = { correct: 0, total: 0 };
+        trapStats[r.challenge_type].total++;
+        if (r.correct) trapStats[r.challenge_type].correct++;
+      });
+      const trapData = Object.entries(trapStats).map(([type, s]) => ({
+        name: type.replace(/_trap$/, "").replace(/_/g, " "), accuracy: Math.round((s.correct / s.total) * 100), total: s.total,
+      }));
+
+      return (
+        <div className="card">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-white">Spot the Flaw</h2>
+            <p className="text-sm text-gray-400 mt-1">Artifact Effect Gauntlet performance</p>
+          </div>
+          <div className="flex gap-3 mb-5">
+            <StatPill label="Accuracy" value={`${accuracy}%`} color={accuracy >= 60 ? "#10B981" : accuracy >= 40 ? "#F59E0B" : "#EF4444"} />
+            <StatPill label="Attempts" value={total} color="#3B82F6" />
+            <StatPill label="Conf (wrong)" value={avgConfWrong} color={avgConfWrong !== "N/A" && avgConfWrong > 3 ? "#EF4444" : "#10B981"} />
+          </div>
+          {trapData.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">By Trap Type</p>
+              <ResponsiveContainer width="100%" height={Math.max(80, trapData.length * 35)}>
+                <BarChart data={trapData} layout="vertical">
+                  <XAxis type="number" domain={[0, 100]} tick={{ fill: "#6B7280", fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: "#9CA3AF", fontSize: 11 }} width={110} />
+                  <Bar dataKey="accuracy" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                    {trapData.map((e, i) => <Cell key={i} fill={e.accuracy >= 60 ? "#10B981" : e.accuracy >= 40 ? "#F59E0B" : "#EF4444"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          <div className="results-strip mt-4">
+            {proveResults.slice(0, 20).map((r, i) => (
+              <div key={i} title={`${r.challenge_type} - ${r.correct ? "Correct" : "Wrong"} (conf: ${r.user_confidence})`}
+                style={{ width: 28, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 500,
+                  background: r.correct ? "#065F4622" : "#7F1D1D22", border: `1px solid ${r.correct ? "#10B98144" : "#EF444444"}`, color: r.correct ? "#10B981" : "#EF4444" }}>
+                {r.correct ? "\u2713" : "\u2717"}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function ElevateHistory({ results }) {
+      if (!results?.length) {
+        return (<div className="card"><h2 className="text-lg font-semibold text-white mb-4">Elevate Sessions</h2>
+          <div className="flex items-center justify-center" style={{ height: 128 }}><div className="text-center text-gray-500">
+            <div style={{ fontSize: 30, marginBottom: 8 }}>&#x1f4c8;</div><p>No evaluations yet</p>
+            <p className="text-xs mt-1">Use <code className="text-violet-400">elevate</code> after real tasks</p>
+          </div></div></div>);
+      }
+      const timeline = results.map(r => ({ date: new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }), level: r.level_estimate })).reverse();
+
+      return (
+        <div className="card">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-white">Elevate Sessions</h2>
+            <p className="text-sm text-gray-400 mt-1">{results.length} evaluations tracked</p>
+          </div>
+          {timeline.length > 1 && (
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={timeline}>
+                <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} /><stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} /></linearGradient></defs>
+                <XAxis dataKey="date" tick={{ fill: "#6B7280", fontSize: 11 }} />
+                <YAxis domain={[0, 6]} tick={{ fill: "#6B7280", fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: "#1F2937", border: "1px solid #374151", borderRadius: 8, color: "#E5E7EB" }} />
+                <Area type="monotone" dataKey="level" stroke="#8B5CF6" fill="url(#lg)" strokeWidth={2} dot={{ r: 4, fill: "#8B5CF6" }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          <div className="space-y-3 mt-4 max-h-64 overflow-y-auto">
+            {results.map((r, i) => (
+              <div key={i} style={{ padding: 16, background: "#1f2937", borderRadius: 12 }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-white">Level {r.level_estimate}</span>
+                  <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
+                </div>
+                <p className="text-sm text-gray-300 mb-2">{r.task_description}</p>
+                {r.what_did_well && <p className="text-xs text-emerald-400 mb-1">{"\u2713"} {r.what_did_well.substring(0, 120)}{r.what_did_well.length > 120 ? "..." : ""}</p>}
+                {r.level_up_move && <p className="text-xs text-amber-400">{"\u2191"} {r.level_up_move.substring(0, 120)}{r.level_up_move.length > 120 ? "..." : ""}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function SavedInsights({ saves }) {
+      const [expanded, setExpanded] = useState(null);
+      if (!saves?.length) {
+        return (<div className="card"><h2 className="text-lg font-semibold text-white mb-4">Knowledge Graph</h2>
+          <div className="flex items-center justify-center" style={{ height: 128 }}><div className="text-center text-gray-500">
+            <div style={{ fontSize: 30, marginBottom: 8 }}>&#x1f4a1;</div><p>No insights saved yet</p>
+            <p className="text-xs mt-1">Use <code className="text-violet-400">save</code> in Claude</p>
+          </div></div></div>);
+      }
+      const tagCounts = {};
+      saves.forEach(s => (s.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+      const topTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+      return (
+        <div className="card">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-white">Knowledge Graph</h2>
+            <p className="text-sm text-gray-400 mt-1">{saves.length} insights saved &bull; {Object.keys(tagCounts).length} unique tags</p>
+          </div>
+          {topTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {topTags.map(([tag, count]) => (
+                <span key={tag} style={{ padding: "4px 12px", borderRadius: 9999, fontSize: Math.min(12 + count, 15), fontWeight: 500, background: "#8B5CF622", color: "#A78BFA", border: "1px solid #8B5CF633" }}>
+                  {tag} <span className="text-gray-500">{count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {saves.map((s, i) => (
+              <div key={s.id || i} className="insight-card" onClick={() => setExpanded(expanded === i ? null : i)}
+                style={{ borderLeft: `3px solid ${s.confidence_score >= 4 ? "#10B981" : s.confidence_score >= 3 ? "#3B82F6" : "#6B7280"}` }}>
+                <p className="text-sm text-gray-200 leading-relaxed">{s.insight}</p>
+                {expanded === i && s.context && <p className="text-xs text-gray-400 mt-2 italic">{s.context}</p>}
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-gray-500">{s.domain}</span>
+                  <span className="text-xs text-gray-600">&bull;</span>
+                  <span className="text-xs text-gray-500">{new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                  {s.confidence_score && <><span className="text-xs text-gray-600">&bull;</span><span className="text-xs text-gray-500">conf: {s.confidence_score}/5</span></>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Main ────────────────────────────────────
+    function App() {
+      const [userId, setUserId] = useState("shronit");
+      const [userInput, setUserInput] = useState("shronit");
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [data, setData] = useState({ userScore: null, saves: [], proveResults: [], elevateResults: [] });
+
+      const loadData = useCallback(async (uid) => {
+        setLoading(true); setError(null);
+        try {
+          const [us, sv, pr, ev] = await Promise.all([
+            q("user_scores", `user_id=eq.${uid}&select=*`),
+            q("saves", `user_id=eq.${uid}&select=*&order=created_at.desc&limit=50`),
+            q("prove_results", `user_id=eq.${uid}&select=*&order=created_at.desc&limit=50`),
+            q("elevate_results", `user_id=eq.${uid}&select=*&order=created_at.desc&limit=20`),
+          ]);
+          setData({ userScore: us?.[0] || null, saves: sv || [], proveResults: pr || [], elevateResults: ev || [] });
+        } catch (err) { setError(err.message); }
+        finally { setLoading(false); }
+      }, []);
+
+      useEffect(() => { loadData(userId); }, [userId, loadData]);
+
+      const us = data.userScore;
+      const tier = us?.tier || "Explorer";
+      const level = us?.level || 0;
+      const tc = TIER_CFG[tier] || TIER_CFG.Explorer;
+
+      return (
+        <div>
+          {/* Top bar */}
+          <div className="topbar">
+            <div className="topbar-inner">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm" style={{ background: tc.color }}>LT</div>
+                <div><span className="text-sm font-semibold text-white">LearnTube</span><span className="text-xs text-gray-400 ml-2">AI Readiness</span></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="text" value={userInput} onChange={e => setUserInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") setUserId(userInput.trim()); }} className="uid-input" placeholder="user id" />
+                <button onClick={() => setUserId(userInput.trim())} className="btn btn-primary">Load</button>
+                <button onClick={() => loadData(userId)} className="btn btn-secondary" title="Refresh">{"\u21BB"}</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && <div className="max-w-5xl mx-auto px-4 mt-4"><div style={{ background: "#450A0A44", border: "1px solid #7F1D1D", borderRadius: 12, padding: 16, color: "#FCA5A5", fontSize: 14 }}>Failed to load: {error}</div></div>}
+
+          {/* Loading */}
+          {loading && <div className="flex items-center justify-center" style={{ height: 256 }}><div className="text-gray-400 flex items-center gap-2">
+            <div style={{ width: 20, height: 20, border: "2px solid #8B5CF6", borderTopColor: "transparent", borderRadius: "50%" }} className="animate-spin" /> Loading...
+          </div></div>}
+
+          {/* Content */}
+          {!loading && (
+            <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+              {/* Hero */}
+              <div className="grid-1-3">
+                <TierBadge tier={tier} level={level} />
+                <div className="card flex flex-col justify-between">
+                  <div className="mb-4">
+                    <h2 className="text-lg font-semibold text-white">Welcome back, {userId}</h2>
+                    <p className="text-sm text-gray-400 mt-1">{us ? "Your AI Readiness credential is live and updating with every session." : "Start using save, elevate, and prove in Claude to build your profile."}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <StatPill label="Saves" value={us?.total_saves || 0} color="#3B82F6" />
+                    <StatPill label="Elevates" value={us?.total_elevates || 0} color="#8B5CF6" />
+                    <StatPill label="Proves" value={us?.total_proves || 0} color="#F59E0B" />
+                    <StatPill label="Streak" value={`${us?.streak_days || 0}d`} color="#EF4444" />
+                  </div>
+                  {us?.last_active && <p className="text-xs text-gray-500 mt-3">Last active: {new Date(us.last_active).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>}
+                </div>
+              </div>
+              {/* Radar + Prove */}
+              <div className="grid-1-2">
+                <AbilityRadar abilities={us?.abilities} />
+                <ProvePerformance proveResults={data.proveResults} />
+              </div>
+              {/* Elevate */}
+              <ElevateHistory results={data.elevateResults} />
+              {/* Saves */}
+              <SavedInsights saves={data.saves} />
+              {/* Footer */}
+              <div className="text-center py-8 text-gray-600 text-xs">LearnTube AI Readiness &bull; Phase 0 Companion &bull; Data from your Claude MCP sessions</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
